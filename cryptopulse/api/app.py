@@ -71,20 +71,32 @@ def _log_event(event: str, data: dict = None) -> None:
 
 
 def _okx_get(path: str, params: dict = None) -> dict | None:
-    """通过 requests 调用 OKX API，自动重试 demo/生产域名"""
+    """通过 requests 调用 OKX API"""
     import requests
-    kwargs = {"params": params, "timeout": 15}
+    kwargs = {"params": params, "timeout": 20}
     if PROXY:
         kwargs["proxies"] = {"http": PROXY, "https": PROXY}
 
-    for domain in ("https://www.okx.bet", "https://www.okx.com"):
+    domains = [
+        "https://www.okx.com",
+        "https://aws.okx.com",
+        "https://www.okx.cab",
+    ]
+    last_error = ""
+    for domain in domains:
         try:
             resp = requests.get(f"{domain}{path}", **kwargs)
             data = resp.json()
-            if data.get("code") == "0":
+            code = data.get("code")
+            if code == "0" or code == 0:
                 return data
+            last_error = f"code={code}, msg={data.get('msg','')}"
+            print(f"OKX API error ({domain}): {last_error}", file=sys.stderr)
         except Exception as e:
+            last_error = str(e)
             print(f"OKX API fail ({domain}): {e}", file=sys.stderr)
+    # 保存最后一个错误，供上层返回
+    _okx_get.last_error = last_error
     return None
 
 
@@ -354,7 +366,8 @@ def api_backtest():
 
         raw_candles = _fetch_candles(symbol, bar, needed)
         if not raw_candles or len(raw_candles) < 100:
-            return jsonify({"error": f"从OKX获取K线数据失败或不足 (获取{len(raw_candles) if raw_candles else 0}根)"}), 503
+            err = getattr(_okx_get, 'last_error', '未知错误')
+            return jsonify({"error": f"从OKX获取K线数据失败: {err} (获取{len(raw_candles) if raw_candles else 0}根)"}), 503
 
         # 转换为DataFrame
         df = pd.DataFrame(raw_candles, columns=["timestamp","open","high","low","close","volume","volCcy","volCcyQuote","confirm"])

@@ -129,11 +129,11 @@
             if(end)url+='&end='+encodeURIComponent(end);
             fetch(url).then(r=>r.json()).then(d=>{
                 document.getElementById('loading').style.display='none';
-                if(d.error){document.getElementById('stat-status').textContent='错误';document.getElementById('stat-status').className='stat-value red';alert('回测失败: '+d.error);return;}
+                if(d.error){document.getElementById('stat-status').textContent=d.error.substring(0,50);document.getElementById('stat-status').className='stat-value red';document.getElementById('stat-status').title=d.error;return;}
                 candles=d.candles||[];trades=d.trades||[];stats=d.stats||{};
                 renderChart();renderStats();renderTrades();renderSignals();renderRisk();
                 document.getElementById('stat-status').textContent='完成';document.getElementById('stat-status').className='stat-value green';
-            }).catch(e=>{document.getElementById('loading').style.display='none';document.getElementById('stat-status').textContent='请求失败';document.getElementById('stat-status').className='stat-value red';alert('请求失败: '+e.message);});
+            }).catch(e=>{document.getElementById('loading').style.display='none';document.getElementById('stat-status').textContent='请求失败: '+e.message;document.getElementById('stat-status').className='stat-value red';});
         }
         function renderChart(){
             const cd=candles.map(c=>({time:Math.floor(c.t/1000),open:c.o,high:c.h,low:c.l,close:c.c}));
