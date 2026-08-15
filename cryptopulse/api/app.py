@@ -293,10 +293,10 @@ def api_backtest():
     """回测分析 API — 从本地 Parquet 读取历史数据，支持指定时间段"""
     try:
         print(f"[回测] 开始处理请求, style={request.args.get('style','?')}, lookahead={request.args.get('lookahead','?')}, start={request.args.get('start','?')[:20]}, end={request.args.get('end','?')[:20]}", file=sys.stderr)
-        symbol = os.environ.get("SYMBOL", "BTC-USDT")
+        symbol = os.environ.get("SYMBOL", "BTC-USDT-SWAP")
         style = request.args.get("style", "short_term")
-        lookahead = request.args.get("lookahead", 480, type=int)
-        bar = "1m" if style == "short_term" else "4H"
+        lookahead = request.args.get("lookahead", 10, type=int)
+        bar = request.args.get("bar", "1m" if style == "short_term" else "4H")
         # 止盈止损参数（百分比）
         sl_pct = request.args.get("sl", 0.0, type=float)
         tp_pct = request.args.get("tp", 0.0, type=float)

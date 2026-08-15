@@ -76,24 +76,43 @@ function toggleRealtime(){
 
 function silentReload(){
     const lookahead=document.getElementById('sel-lookahead').value;
+    const bar=document.getElementById('sel-bar')?.value || '1H';
     const start=document.getElementById('sel-start').value;
     const end=document.getElementById('sel-end').value;
     const dateRange=parseDateRange(document.getElementById('date-range'));
-    let url='/api/backtest?style='+currentStyle+'&lookahead='+lookahead+'&_t='+Date.now();
-    // 实时模式：不过滤 trade_start（原逻辑导致数据末端无信号）
-    if(dateRange){url+='&start='+encodeURIComponent(dateRange.start);}
-    else if(start){url+='&start='+start;}
+    const cap=document.getElementById('pos-capital')?.value || 1000;
+    const lev=document.getElementById('pos-leverage')?.value || 1;
+    const fee=document.getElementById('pos-fee')?.value || 0.0005;
+    const slCooldown=document.getElementById('sl-cooldown-min')?.value || 5;
+    const slCooldownEnabled=document.getElementById('chk-sl-cooldown')?.checked ? 1 : 0;
+    const feeFilter=document.getElementById('chk-fee-filter')?.checked ? 1 : 0;
+    
+    let url='/api/backtest?style='+currentStyle+'&lookahead='+lookahead+'&bar='+bar+'&cap='+cap+'&lev='+lev+'&fee='+fee+'&sl_cooldown='+slCooldown+'&sl_cooldown_enabled='+slCooldownEnabled+'&fee_filter='+feeFilter+'&_t='+Date.now();
+    
+    if(dateRange){url+='&start='+encodeURIComponent(dateRange.start)+'&end='+encodeURIComponent(dateRange.end);}
+    else{
+        if(start)url+='&start='+start;
+        if(end)url+='&end='+end;
+    }
+    
+    const info=document.getElementById('tb-info');
+    info.textContent='加载中...';
+    
     fetch(url).then(r=>r.json()).then(d=>{
-        if(d.error)return;
+        if(d.error){
+            info.textContent='❌ '+d.error;
+            return;
+        }
         candles=d.candles||[];trades=d.trades||[];stats=d.stats||{};window._cdZones=d.sl_cooldown_zones||[];
         lastPrediction=d.prediction||null;
         renderChart(true);renderStats();renderTable();renderDistChart();
         updateNetPnl();
-        const info=document.getElementById('tb-info');
         info.textContent=(realtimeMode?'🔴 ':'📡 ')+d.total_candles+'根K线 · '+stats.total_trades+'笔交易';
         if(d.date_range)info.textContent+=' · '+d.date_range.start+'~'+d.date_range.end;
         if(lastPrediction)info.textContent+=' · 📡 最新预测:'+(lastPrediction.direction==='bullish'?'📈':'📉')+lastPrediction.confidence+'%';
-    }).catch(()=>{});
+    }).catch(e=>{
+        info.textContent='❌ 请求失败: '+e.message;
+    });
 }
 
 function setStyle(style){
