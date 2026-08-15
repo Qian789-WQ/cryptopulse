@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoPulse · 加密货币技术分析回测系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='backtest.css') }}">
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <!-- 顶部栏 -->
+    <div id="topbar">
+        <div class="tb-l">
+            <span class="tb-logo">⚡ CryptoPulse</span>
+            <a href="#" class="tb-link">BTC永续合约回测</a>
+        </div>
+        <div class="tb-r">
+            <span id="tb-info">加载中...</span>
+            <select id="sel-lookahead" title="前瞻周期">
+                <option value="5">5根</option>
+                <option value="10" selected>10根</option>
+                <option value="20">20根</option>
+                <option value="30">30根</option>
+            </select>
+            <select id="sel-bar" title="K线周期">
+                <option value="1m">1分钟</option>
+                <option value="5m">5分钟</option>
+                <option value="15m">15分钟</option>
+                <option value="1H" selected>1小时</option>
+                <option value="4H">4小时</option>
+                <option value="1D">日线</option>
+            </select>
+            <button class="btn-s" onclick="setRange(1)">1天</button>
+            <button class="btn-s" onclick="setRange(7)">7天</button>
+            <button class="btn-s" onclick="setRange(30)">30天</button>
+            <button class="btn-s" id="btn-latest" onclick="toggleLatest()">到最新</button>
+            <button class="btn-s" id="btn-realtime" onclick="toggleRealtime()">实时</button>
+        </div>
+    </div>
+
+    <!-- 统计面板 -->
+    <div id="stats-panel">
+        <div class="st-group">
+            <span class="st-label">本金</span>
+            <input type="number" id="pos-capital" value="1000" style="width:70px">
+        </div>
+        <div class="st-group">
+            <span class="st-label">杠杆</span>
+            <input type="number" id="pos-leverage" value="1" style="width:50px">
+        </div>
+        <div class="st-group">
+            <span class="st-label">费率</span>
+            <input type="number" id="pos-fee" value="0.0005" step="0.0001" style="width:60px">
+        </div>
+        <div class="st-divider"></div>
+        <div class="st-group">
+            <span class="st-label">总交易</span>
+            <span class="st-val" id="stat-total">--</span>
+        </div>
+        <div class="st-group">
+            <span class="st-label">胜率</span>
+            <span class="st-val" id="stat-winrate">--</span>
+        </div>
+        <div class="st-group">
+            <span class="st-label">盈亏比</span>
+            <span class="st-val" id="stat-ratio">--</span>
+        </div>
+        <div class="st-group">
+            <span class="st-label">净利润</span>
+            <span class="st-val" id="stat-pnl">--</span>
+        </div>
+        <div class="st-group">
+            <span class="st-label">ROI</span>
+            <span class="st-val" id="stat-roi">--</span>
+        </div>
+        <div class="st-group">
+            <span class="st-label">最大回撤</span>
+            <span class="st-val" id="stat-dd">--</span>
+        </div>
+        <div class="st-divider"></div>
+        <div class="st-group">
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+                <input type="checkbox" id="chk-sl-cooldown" checked>
+                <span class="st-label">止损冷却</span>
+            </label>
+            <input type="number" id="sl-cooldown-min" value="5" style="width:40px">
+            <span class="st-label">分钟</span>
+        </div>
+        <div class="st-group">
+            <label style="display:flex;align-items:center;gap:4px;cursor:pointer">
+                <input type="checkbox" id="chk-fee-filter">
+                <span class="st-label">保本过滤</span>
+            </label>
+        </div>
+        <div class="st-group">
+            <button class="btn-r" onclick="loadData()">开始回测</button>
+        </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div id="chart-wrap"></div>
+
+    <!-- 底部面板 -->
+    <div id="bottom-panel">
+        <div id="panel-tabs">
+            <div class="panel-tab active" onclick="switchTab('trades')">交易明细</div>
+            <div class="panel-tab" onclick="switchTab('signals')">信号分布</div>
+            <div class="panel-tab" onclick="switchTab('risk')">风控统计</div>
+            <div class="panel-tab" onclick="switchTab('settings')">日期设置</div>
+        </div>
+        <div id="panel-content" style="flex:1;overflow:auto;padding:10px">
+            <!-- 交易明细 -->
+            <div id="tab-trades" class="tab-content">
+                <div id="trades-list" style="display:grid;gap:4px"></div>
+            </div>
+            <!-- 信号分布 -->
+            <div id="tab-signals" class="tab-content" style="display:none">
+                <div id="signals-stats"></div>
+            </div>
+            <!-- 风控统计 -->
+            <div id="tab-risk" class="tab-content" style="display:none">
+                <div id="risk-stats"></div>
+            </div>
+            <!-- 日期设置 -->
+            <div id="tab-settings" class="tab-content" style="display:none">
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                    <div>
+                        <label style="color:#525f7a;font-size:10px">开始时间</label>
+                        <input type="datetime-local" id="sel-start" style="width:180px">
+                    </div>
+                    <div>
+                        <label style="color:#525f7a;font-size:10px">结束时间</label>
+                        <input type="datetime-local" id="sel-end" style="width:180px">
+                    </div>
+                    <div>
+                        <label style="color:#525f7a;font-size:10px">快速范围</label>
+                        <input type="text" id="date-range" placeholder="2026-05-01 - 2026-05-07" style="width:280px">
+                    </div>
+                    <button class="btn-r" onclick="loadData()">应用</button>
+                    <button class="btn-s" onclick="exportTrades()">导出CSV</button>
+                    <button class="btn-s" onclick="exportRawKlines()">导出K线</button>
+                </div>
+                <div id="date-history" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div id="ctx-menu" style="display:none;position:fixed;z-index:200;background:#131a2b;border:1px solid #1e2a45;border-radius:6px;padding:4px;min-width:120px">
+        <div class="ctx-item" onclick="clearHighlight()">清除高亮</div>
+        <div class="ctx-item" id="ctx-clear-hl" style="display:none"></div>
+    </div>
+
+    <!-- 提示 -->
+    <div id="tip" style="position:fixed;bottom:10px;right:10px;background:#131a2b;border:1px solid #1e2a45;border-radius:6px;padding:8px 12px;font-size:11px;color:#8892b0;z-index:100;display:none"></div>
+
+    <!-- 加载进度 -->
+    <div id="progress-overlay">
+        <div style="font-size:14px;color:#8892b0">正在回测...</div>
+        <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill"></div></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/backtest-init.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/backtest-data.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/backtest-chart.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/backtest-export.js') }}"></script>
+    <script>
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initDates();
+            initChart();
+            loadData();
+        });
+
+        function switchTab(name) {
+            document.querySelectorAll('.panel-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+            event.target.classList.add('active');
+            document.getElementById('tab-' + name).style.display = 'block';
+        }
+
+        function clearHighlight() {
+            highlightFilter = null;
+            document.getElementById('ctx-menu').style.display = 'none';
+            loadData();
+        }
+
+        // 右键菜单
+        document.getElementById('chart-wrap').addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            const menu = document.getElementById('ctx-menu');
+            menu.style.left = e.clientX + 'px';
+            menu.style.top = e.clientY + 'px';
+            menu.style.display = 'block';
+        });
+
+        document.addEventListener('click', function() {
+            document.getElementById('ctx-menu').style.display = 'none';
+        });
+    </script>
+</body>
+</html>

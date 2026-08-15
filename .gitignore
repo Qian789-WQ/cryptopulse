@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# 环境
+.env
+venv/
+.venv/
+
+# 数据 - 忽略整个data目录
+data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+
+# AI 辅助工具
+.reasonix/
+
+# 临时修复脚本
+fix_*.py
+restore_*.py
+fix_export.py
